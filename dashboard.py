@@ -1,6 +1,7 @@
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
+from dash import no_update 
 import pandas as pd
 from recommendation import MovieRecommender  # Angenommen, diese Datei implementiert Empfehlungsalgorithmen
 import data_visualisation as dv  # Angenommen, diese Datei implementiert Visualisierungsfunktionen
@@ -26,8 +27,6 @@ unique_genres = set(genre for sublist in df['genres'] for genre in sublist)
 
 # Initialisierung der Dash-App
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
-
 
 # Definieren des App-Layouts
 app.layout = html.Div([
@@ -55,13 +54,10 @@ app.layout = html.Div([
             dcc.Slider(id='rating-slider', min=0, max=10, step=0.1, value=5, marks={str(i): str(i) for i in range(0, 11)}),
         ], md=4),
     ], className='mb-3'),
-
-     # Stellen Sie sicher, dass ein Button mit der ID 'calculate-foreign-perc-button' vorhanden ist
-    html.Button('Ausländische Prozentanteile berechnen', id='calculate-foreign-perc-button', n_clicks=0),
-    
-    # Ausgabeelement für die ausländischen Prozentanteile
     html.Div(id='foreign-perc-output'),
-    dcc.Store(id='stored-recommendations'),  # Zum Speichern der Empfehlungen
+    dcc.Store(id='last-action-store', storage_type='session'),
+    dcc.Store(id='stored-recommendations'),
+
     dbc.Row([
         dbc.Col([
             html.H4('Streaming-Dienst auswählen'),
@@ -88,10 +84,8 @@ app.layout = html.Div([
     
     html.Div(id='analysis-output', className='mb-3'),
     
-    # Seitenleiste für die Paginierung
     html.Div(id='page-content'),  # Container für Filmempfehlungen
     dbc.Pagination(id="pagination", max_value=1, active_page=1, size="sm", style={'marginTop': 30}),
-    dcc.Store(id='stored-recommendations'),
 ], style={'textAlign': 'center', 'width': '80%', 'margin': 'auto'})
 
 # Callbacks und Logik für die Interaktion hier hinzufügen...
@@ -100,7 +94,12 @@ app.layout = html.Div([
     [Output('movie-title-input', 'value'),
      Output('title-recommendations-output', 'children'),
      Output('filter-recommendations-output', 'children'),
-     Output('stored-recommendations', 'data')],  # Fügen Sie hier eine Output-Komponente hinzu, um die gefilterten Daten zu speichern
+     Output('stored-recommendations', 'data'),
+     Output('genre-dropdown', 'value'),
+     Output('year-slider', 'value'),
+     Output('rating-slider', 'value'),
+     Output('streaming-service-dropdown', 'value'),
+     Output('pagination', 'active_page')],
     [Input('reset-button', 'n_clicks'),
      Input('submit-filter-button', 'n_clicks'),
      Input('find-recommendations-button', 'n_clicks')],
@@ -108,19 +107,26 @@ app.layout = html.Div([
      State('year-slider', 'value'),
      State('rating-slider', 'value'),
      State('streaming-service-dropdown', 'value'),
-     State('movie-title-input', 'value')]
+     State('movie-title-input', 'value'),
+     State('last-action-store', 'data')]  # Hinzufügen des last-action-store als State
 )
-def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range, rating, service, movie_title):
+def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range, rating, service, movie_title, last_action_data):
     ctx = dash.callback_context
 
     if not ctx.triggered:
         raise PreventUpdate
+
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    # Verhindern, dass die Funktion ausgeführt wird, wenn sie bereits für dieselbe Aktion und Klickanzahl ausgeführt wurde
+    if last_action_data is not None:
+        stored_action = last_action_data['last_action']
+        stored_clicks = last_action_data['clicks']
+        if button_id == stored_action and ctx.triggered[0]['value'] <= stored_clicks:
+            raise PreventUpdate
+
     if button_id == 'reset-button':
-    # Zurücksetzen des Filmtiteleingabefelds, der Empfehlungsoutputs und der gespeicherten Empfehlungen
-    # Zusätzliches Zurücksetzen von Dropdowns und Slidern auf ihre Anfangswerte
-        return '', '', '', None
+        return '', no_update, no_update, None, [], [df['release_year'].min(), df['release_year'].max()], 5, None, 1
     elif button_id == 'submit-filter-button':
         filtered_df = df.copy()
         if genres:
@@ -133,23 +139,19 @@ def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range,
             filtered_df = filtered_df[filtered_df['streaming_service'] == service]
 
         if filtered_df.empty:
-            return dash.no_update, dash.no_update, 'Keine Filme gefunden, die den Kriterien entsprechen.', None
+            return no_update, no_update, 'Keine Filme gefunden, die den Kriterien entsprechen.', None, no_update, no_update, no_update, no_update, no_update
         else:
-            # Speichern Sie die gefilterten Daten im JSON-Format im dcc.Store
-            return dash.no_update, dash.no_update, None, filtered_df.to_json(date_format='iso', orient='split')
+            return no_update,no_update, no_update, filtered_df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, no_update, 1
     elif button_id == 'find-recommendations-button':
-        if not movie_title:
-            raise PreventUpdate
         recommendations = movie_recommender.recommend(movie_title)
         if recommendations.empty:
-            return dash.no_update, 'Keine Empfehlungen gefunden.', dash.no_update, None
+            return no_update, 'Keine Empfehlungen gefunden.', no_update, None, no_update, no_update, no_update, no_update, no_update
         else:
-            # Sie könnten auch die Empfehlungen im JSON-Format speichern, falls gewünscht
-            return '', None, None, recommendations.to_json(date_format='iso', orient='split')
+            return no_update,no_update, no_update, no_update, recommendations.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, no_update, no_update
     else:
         raise PreventUpdate
 
-
+    
 @app.callback(
     Output('analysis-output', 'children'),
     [Input('analysis-selector', 'value')]
@@ -166,26 +168,6 @@ def update_analysis(selected_analysis):
         return dcc.Graph(figure=fig)
     return html.Div('Bitte wähle eine Analyse.')
 
-@app.callback(
-    Output('foreign-perc-output', 'children'),
-    [Input('calculate-foreign-perc-button', 'n_clicks')]
-)
-def update_foreign_perc(n_clicks):
-    if n_clicks > 0:
-        df = dv.MovieRecommenderViz.load_and_prepare_data('df_stream.csv')
-        foreign_perc = dv.MovieRecommenderViz.calculate_foreign_perc(df)
-        fig = go.Figure(data=[
-            go.Bar(
-                x=foreign_perc['streaming_service'],
-                y=foreign_perc['Perc'],
-                text=foreign_perc['Perc'],
-                textposition='auto',
-            )
-        ])
-        fig.update_layout(title='Prozentuale Verteilung von ausländischen Filmen', xaxis_title='Streaming-Dienst', yaxis_title='Prozent')
-        
-        return dcc.Graph(figure=fig)
-
 def generate_movie_tiles(data):
     """Generieren der Filmkacheln basierend auf den Filmempfehlungen."""
     tiles = []
@@ -199,7 +181,6 @@ def generate_movie_tiles(data):
         )
         tiles.append(dbc.Col(card, md=2))  # Angepasste Spaltenbreite für 5 Kacheln pro Zeile
     return html.Div(tiles, style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'center'})
-
 
 @app.callback(
     [Output('page-content', 'children'), Output('pagination', 'max_value')],
@@ -219,6 +200,7 @@ def update_page_content_and_pagination(active_page, stored_data):
     tiles = generate_movie_tiles(page_data)
 
     return tiles, total_pages
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)

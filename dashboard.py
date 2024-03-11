@@ -120,17 +120,21 @@ def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range,
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if button_id == 'reset-button':
+        empty_df = pd.DataFrame(columns=['title', 'description'])  # Füge hier alle notwendigen Spalten hinzu
+        # Konvertiere das leere DataFrame in das 'split' JSON-Format
+        empty_df_json = empty_df.to_json(date_format='iso', orient='split')
         return ('',  # Leere das Texteingabefeld
                 [],  # Leere die Titel-Empfehlungen
                 [],  # Leere die Filter-Empfehlungen
-                None,  # Leere die gespeicherten Empfehlungen
+                empty_df_json,  # Leere die gespeicherten Empfehlungen, aber im korrekten Format
                 [],  # Setze die Genres zurück
                 [df['release_year'].min(), df['release_year'].max()],  # Setze das Veröffentlichungsjahr zurück
                 5,  # Setze die IMDb-Bewertung zurück
                 None,  # Setze den Streaming-Service zurück
                 1,  # Setze die aktive Seite zurück
                 1  # Setze die maximale Seitenzahl zurück
-               )
+            )
+
 
     elif button_id == 'submit-filter-button':
         filtered_df = df.copy()
@@ -195,7 +199,7 @@ def generate_movie_tiles(data):
     [Input('pagination', 'active_page'), Input('stored-recommendations', 'data')]
 )
 def update_page_content_and_pagination(active_page, stored_data):
-    if stored_data is None:
+    if stored_data is None or stored_data == json.dumps([]):  # Überprüfe, ob die Daten leer sind
         raise dash.exceptions.PreventUpdate
     
     recommendations = pd.read_json(stored_data, orient='split')

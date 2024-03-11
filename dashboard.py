@@ -99,7 +99,8 @@ app.layout = html.Div([
      Output('year-slider', 'value'),
      Output('rating-slider', 'value'),
      Output('streaming-service-dropdown', 'value'),
-     Output('pagination', 'active_page')],
+     Output('pagination', 'active_page'),
+     Output('pagination', 'max_value')],
     [Input('reset-button', 'n_clicks'),
      Input('submit-filter-button', 'n_clicks'),
      Input('find-recommendations-button', 'n_clicks')],
@@ -108,7 +109,7 @@ app.layout = html.Div([
      State('rating-slider', 'value'),
      State('streaming-service-dropdown', 'value'),
      State('movie-title-input', 'value'),
-     State('last-action-store', 'data')]  # Hinzufügen des last-action-store als State
+     State('last-action-store', 'data')]
 )
 def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range, rating, service, movie_title, last_action_data):
     ctx = dash.callback_context
@@ -118,15 +119,19 @@ def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range,
 
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Verhindern, dass die Funktion ausgeführt wird, wenn sie bereits für dieselbe Aktion und Klickanzahl ausgeführt wurde
-    if last_action_data is not None:
-        stored_action = last_action_data['last_action']
-        stored_clicks = last_action_data['clicks']
-        if button_id == stored_action and ctx.triggered[0]['value'] <= stored_clicks:
-            raise PreventUpdate
-
     if button_id == 'reset-button':
-        return '', no_update, no_update, None, [], [df['release_year'].min(), df['release_year'].max()], 5, None, 1
+        return ('',  # Leere das Texteingabefeld
+                [],  # Leere die Titel-Empfehlungen
+                [],  # Leere die Filter-Empfehlungen
+                None,  # Leere die gespeicherten Empfehlungen
+                [],  # Setze die Genres zurück
+                [df['release_year'].min(), df['release_year'].max()],  # Setze das Veröffentlichungsjahr zurück
+                5,  # Setze die IMDb-Bewertung zurück
+                None,  # Setze den Streaming-Service zurück
+                1,  # Setze die aktive Seite zurück
+                1  # Setze die maximale Seitenzahl zurück
+               )
+
     elif button_id == 'submit-filter-button':
         filtered_df = df.copy()
         if genres:
@@ -139,18 +144,21 @@ def update_outputs(reset_clicks, filter_clicks, find_clicks, genres, year_range,
             filtered_df = filtered_df[filtered_df['streaming_service'] == service]
 
         if filtered_df.empty:
-            return no_update, no_update, 'Keine Filme gefunden, die den Kriterien entsprechen.', None, no_update, no_update, no_update, no_update, no_update
+            return no_update, no_update, 'Keine Filme gefunden, die den Kriterien entsprechen.', None, no_update, no_update, no_update, no_update, no_update, no_update
         else:
-            return no_update,no_update, no_update, filtered_df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, no_update, 1
+            recommendations_json = filtered_df.to_json(date_format='iso', orient='split')
+            total_pages = math.ceil(len(filtered_df) / PAGE_SIZE)
+            return no_update, no_update, no_update, recommendations_json, no_update, no_update, no_update, no_update, 1, total_pages
     elif button_id == 'find-recommendations-button':
         recommendations = movie_recommender.recommend(movie_title)
         if recommendations.empty:
-            return no_update, 'Keine Empfehlungen gefunden.', no_update, None, no_update, no_update, no_update, no_update, no_update
+            return no_update, 'Keine Empfehlungen gefunden.', no_update, None, no_update, no_update, no_update, no_update, 1, no_update
         else:
-            return no_update,no_update, no_update, no_update, recommendations.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, no_update, no_update
+            recommendations_json = recommendations.to_json(date_format='iso', orient='split')
+            total_pages = math.ceil(len(recommendations) / PAGE_SIZE)
+            return no_update, no_update, no_update, recommendations_json, no_update, no_update, no_update, no_update, 1, total_pages
     else:
         raise PreventUpdate
-
     
 @app.callback(
     Output('analysis-output', 'children'),
@@ -183,7 +191,7 @@ def generate_movie_tiles(data):
     return html.Div(tiles, style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'center'})
 
 @app.callback(
-    [Output('page-content', 'children'), Output('pagination', 'max_value')],
+    Output('page-content', 'children'),
     [Input('pagination', 'active_page'), Input('stored-recommendations', 'data')]
 )
 def update_page_content_and_pagination(active_page, stored_data):

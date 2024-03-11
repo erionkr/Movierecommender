@@ -9,6 +9,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import ast
 import string 
+from fuzzywuzzy import process
 
 class MovieRecommender:
     def __init__(self, df_stream_dir_path):
@@ -21,9 +22,9 @@ class MovieRecommender:
         self.count_matrix = None
         self.hybrid_cosine_sim = None
         # Vorbereitung der NLTK-Ressourcen
-        nltk.download('stopwords')
-        nltk.download('punkt')
-        nltk.download('wordnet')
+        #nltk.download('stopwords')
+        #nltk.download('punkt')
+        #nltk.download('wordnet')
 
     def prepare_data(self):
         self.df = self.df[["title", "description", "genres", "name", "primaryName"]].copy()
@@ -80,19 +81,30 @@ class MovieRecommender:
         A, B = 2, 1  # Gewichtungsfaktoren
         self.hybrid_cosine_sim = A * tfidf_cosine_sim + B * count_cosine_sim
 
-    def recommend(self, movie_title):
-        # Filter DataFrame für den gegebenen Filmtitel
-        filtered_df = self.df[self.df['title'] == movie_title]
-
-        # Überprüfe, ob der gefilterte DataFrame leer ist
-        if filtered_df.empty:
+    def recommend(self, search_query):
+        # Suche nach den am besten passenden Titeln im DataFrame
+        titles = self.df['title'].tolist()
+        # Findet die besten Übereinstimmungen für den gegebenen Suchbegriff
+        closest_matches = process.extract(search_query, titles, limit=10)
+        matched_titles = [match[0] for match in closest_matches]
+        
+        # Filtert den DataFrame, um nur Filme mit passenden Titeln einzubeziehen
+        matched_df = self.df[self.df['title'].isin(matched_titles)]
+        
+        if matched_df.empty:
             # Keine Empfehlungen gefunden, gebe eine leere Liste oder eine Fehlermeldung zurück
             return pd.DataFrame(columns=["title", "description"])
+        
+        # Berechnung der Empfehlungen basierend auf den gefilterten Filmen
+        recommendations = []
+        for title in matched_titles:
+            index = matched_df[matched_df['title'] == title].index[0]
+            similarity_scores = pd.Series(self.hybrid_cosine_sim[index]).sort_values(ascending=False)
+            top_indices = similarity_scores.iloc[1:11].index  # Die Top 10 Empfehlungen, ohne den Film selbst
+            recommendations.append(self.df.iloc[top_indices][["title", "description"]])
+        
+        # Kombiniere alle gefundenen Empfehlungen in einem DataFrame
+        final_recommendations = pd.concat(recommendations).drop_duplicates().head(10)
+        return final_recommendations
 
-        # Wenn der DataFrame nicht leer ist, fahre mit der Empfehlungslogik fort
-        index = filtered_df.index[0]
-        similarity_scores = pd.Series(self.hybrid_cosine_sim[index]).sort_values(ascending=False)
-        top_indices = similarity_scores.iloc[1:11].index  # Top 10 Empfehlungen, ohne den Film selbst
-        recommendations = self.df.iloc[top_indices]
-        return recommendations[["title", "description"]]
 

@@ -41,7 +41,12 @@ app.layout = html.Div([
         }
         ```
     ''', style={'display': 'none'}),
-    html.H1('Filmempfehlungs-Dashboard', style={'margin-bottom': '20px', 'color': 'white'}),  # Textfarbe für die Hauptüberschrift
+   html.H1("JELF's CineScope",
+                style={'textAlign': 'center', 'color': '#87CEEB', 'fontSize': '48px', 'fontWeight': 'bold', 'marginBottom': '5px'}),
+        html.H2('Entdecke Deine nächsten Filmfavoriten',
+                style={'textAlign': 'center', 'color': '#ADD8E6', 'fontSize': '24px', 'fontWeight': 'lighter', 'marginTop': '5px'}),
+        html.P("Lass dich von Fabian, Loan, Janine und Erion durch ein Meer von unentdeckten Schätzen und Blockbuster-Hits navigieren",
+               style={'textAlign': 'center', 'color': 'white', 'fontSize': '18px', 'margin': '20px 0'}),
     dbc.Row([
         dbc.Col([
             dcc.Input(id='movie-title-input', type='text', placeholder='Geben Sie einen Filmtitel ein', debounce=True, className='mb-2 form-control'),
@@ -191,7 +196,7 @@ def update_analysis(selected_analysis):
     elif selected_analysis == 'budget_visualizations':
         fig = dv.MovieRecommenderViz.plot_budget_visualizations(df)
         return dcc.Graph(figure=fig)
-    return html.Div('Bitte wähle eine Analyse.')
+    return html.Div()
 
 def generate_movie_tiles(data):
     """Generieren der Filmkacheln basierend auf den Filmempfehlungen."""

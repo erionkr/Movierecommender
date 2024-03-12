@@ -25,35 +25,48 @@ def clean_genre(genre_str):
 df['genres'] = df['genres'].apply(clean_genre)
 unique_genres = set(genre for sublist in df['genres'] for genre in sublist)
 
-# Initialisierung der Dash-App
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+# Initialisierung der Dash-App, Bootstrap-Thema anpassen
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])  # Verwendung eines anderen Bootstrap-Themas für eine neue Optik
 
 # Definieren des App-Layouts
 app.layout = html.Div([
-    html.H1('Filmempfehlungs-Dashboard', style={'margin-bottom': '20px'}),
+    dcc.Markdown('''
+        ```css
+        .Select-control {
+            background-color: lightblue;
+        }
+
+        .Select--single > .Select-control .Select-value, .Select-placeholder {
+            color: white;
+        }
+        ```
+    ''', style={'display': 'none'}),
+    html.H1('Filmempfehlungs-Dashboard', style={'margin-bottom': '20px', 'color': 'white'}),  # Textfarbe für die Hauptüberschrift
     dbc.Row([
         dbc.Col([
-            dcc.Input(id='movie-title-input', type='text', placeholder='Geben Sie einen Filmtitel ein', debounce=True, className='mb-2'),
-            html.Button('Empfehlungen finden', id='find-recommendations-button', n_clicks=0, className='me-2'),
+            dcc.Input(id='movie-title-input', type='text', placeholder='Geben Sie einen Filmtitel ein', debounce=True, className='mb-2 form-control'),
+            html.Button('Empfehlungen finden', id='find-recommendations-button', n_clicks=0, className='btn btn-info me-2'),
         ], width=12),
     ], className='mb-3'),
     
     html.Div(id='title-recommendations-output', className='mb-3'),
     
+    # Genre-, Jahr- und Bewertungsauswahl mit verbessertem Layout
     dbc.Row([
         dbc.Col([
-            html.H4('Genre auswählen'),
-            dcc.Dropdown(id='genre-dropdown', options=[{'label': genre, 'value': genre} for genre in unique_genres], multi=True, placeholder='Wählen Sie ein Genre'),
+             html.H4('Genre auswählen', style={'color': 'lightblue'}),  # Beispiel für eine Farbanpassung der Überschrift
+            dcc.Dropdown(id='genre-dropdown', options=[{'label': genre, 'value': genre} for genre in unique_genres], multi=True, placeholder='Wählen Sie ein Genre', className='dropdown', ),
         ], md=4),
         dbc.Col([
-            html.H4('Veröffentlichungsjahr'),
-            dcc.RangeSlider(id='year-slider', min=df['release_year'].min(), max=df['release_year'].max(), value=[df['release_year'].min(), df['release_year'].max()], marks={str(year): str(year) for year in range(df['release_year'].min(), df['release_year'].max()+1, 10)}, step=1),
+            html.H4('Veröffentlichungsjahr', style={'color': 'lightblue'}),  # Anpassen der Überschriftfarbe
+            dcc.RangeSlider(id='year-slider', min=df['release_year'].min(), max=df['release_year'].max(), value=[df['release_year'].min(), df['release_year'].max()], marks={str(year): {'label': str(year), 'style': {'color': 'white'}} for year in range(df['release_year'].min(), df['release_year'].max()+1, 10)}, step=1),
         ], md=4),
         dbc.Col([
-            html.H4('IMDb-Bewertung'),
-            dcc.Slider(id='rating-slider', min=0, max=10, step=0.1, value=5, marks={str(i): str(i) for i in range(0, 11)}),
+            html.H4('IMDb-Bewertung', style={'color': 'lightblue'}),  # Anpassen der Überschriftfarbe
+            dcc.Slider(id='rating-slider', min=0, max=10, step=0.1, value=5, marks={str(i): {'label': str(i), 'style': {'color': 'white'}} for i in range(0, 11)}),
         ], md=4),
     ], className='mb-3'),
+    
     html.Div(id='foreign-perc-output'),
     dcc.Store(id='last-action-store', storage_type='session'),
     dcc.Store(id='stored-recommendations'),
@@ -64,8 +77,8 @@ app.layout = html.Div([
             dcc.Dropdown(id='streaming-service-dropdown', options=[{'label': service, 'value': service} for service in df['streaming_service'].unique()], placeholder='Wählen Sie einen Streaming-Dienst'),
         ], md=6),
         dbc.Col([
-            html.Button('Suche starten', id='submit-filter-button', n_clicks=0, className='btn-primary mt-4'),
-            html.Button('Suche zurücksetzen', id='reset-button', n_clicks=0),
+            html.Button('Suche starten', id='submit-filter-button', n_clicks=0, className='btn btn-primary mt-4'),  # Button-Stil anpassen
+            html.Button('Suche zurücksetzen', id='reset-button', n_clicks=0, className='btn btn-secondary mt-4 ml-2'),  # Button-Stil anpassen
         ], md=6),
     ], className='mb-3'),
     
@@ -85,8 +98,8 @@ app.layout = html.Div([
     html.Div(id='analysis-output', className='mb-3'),
     
     html.Div(id='page-content'),  # Container für Filmempfehlungen
-    dbc.Pagination(id="pagination", max_value=1, active_page=1, size="sm", style={'marginTop': 30}),
-], style={'textAlign': 'center', 'width': '80%', 'margin': 'auto'})
+    dbc.Pagination(id="pagination", max_value=1, active_page=1, size="sm", style={'marginTop': 30, 'marginBottom': '20px'}),  # Pagination-Stil anpassen
+], style={'textAlign': 'center', 'width': '80%', 'height': '100vh', 'minHeight': '100vh', 'margin': '0 auto', 'padding': '20px', 'backgroundImage': 'url(https://repository-images.githubusercontent.com/275336521/20d38e00-6634-11eb-9d1f-6a5232d0f84f)', 'backgroundSize': 'cover', 'backgroundPosition': 'center center', 'color': '#f8f9fa'})
 
 # Callbacks und Logik für die Interaktion hier hinzufügen...
 

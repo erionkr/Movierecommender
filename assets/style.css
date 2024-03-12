@@ -1,0 +1,11 @@
+/* style.css */
+
+.Select-control, .Select-multi-value-wrapper, .Select-value, .Select-input, .Select-placeholder {
+    background-color: white !important; /* Hintergrundfarbe der Dropdown-Elemente */
+    color:black !important; /* Hellblaue Textfarbe, ändern Sie den Farbcode nach Bedarf */
+}
+
+.Select-menu-outer {
+    background-color: white !important; /* Hintergrundfarbe der Dropdown-Liste */
+    color: black !important; /* Hellblaue Textfarbe für Elemente in der Dropdown-Liste */
+}

@@ -82,6 +82,8 @@ class MovieRecommender:
         self.hybrid_cosine_sim = A * tfidf_cosine_sim + B * count_cosine_sim
 
     def recommend(self, search_query):
+        if not isinstance(search_query, str):
+            return "Ungültige Suche. Bitte versuchen Sie es erneut"
         # Suche nach den am besten passenden Titeln im DataFrame
         titles = self.df['title'].tolist()
         # Findet die besten Übereinstimmungen für den gegebenen Suchbegriff
@@ -106,5 +108,6 @@ class MovieRecommender:
         # Kombiniere alle gefundenen Empfehlungen in einem DataFrame
         final_recommendations = pd.concat(recommendations).drop_duplicates().head(10)
         return final_recommendations
+
 
 
